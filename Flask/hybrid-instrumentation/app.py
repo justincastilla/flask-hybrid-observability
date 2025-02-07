@@ -33,12 +33,12 @@ resource = Resource(attributes={"service.name": service_name})
 trace.set_tracer_provider(TracerProvider(resource=resource))
 tracer_provider = trace.get_tracer_provider()
 
-otlp_trace_exporter = OTLPSpanExporter(
-    endpoint=otlp_endpoint,
-    headers=headers_dict,
-)
-span_processor = BatchSpanProcessor(otlp_trace_exporter)
-tracer_provider.add_span_processor(span_processor)
+# otlp_trace_exporter = OTLPSpanExporter(
+#     endpoint=otlp_endpoint,
+#     headers=headers_dict,
+# )
+# span_processor = BatchSpanProcessor(otlp_trace_exporter)
+# tracer_provider.add_span_processor(span_processor)
 
 # Create a tracer
 tracer = trace.get_tracer(__name__)
@@ -191,14 +191,16 @@ def add():
 @app.route("/delete/<int:task_id>", methods=["GET"])
 def delete(task_id: int):
     with app.app_context():
-        with tracer.start_as_current_span("delete-task"):
+        with tracer.start_as_current_span("delete-task") as span:
             requests_counter.add(1, {"method": "GET", "endpoint": f"/delete/{task_id}"})
             task_to_delete = Task.query.get(task_id)  # Get task by ID
+            span.set_attribute("task_to_delete", task_to_delete.description)
             if task_to_delete:
                 db.session.delete(
                     task_to_delete
                 )  # Remove task from the database session
                 db.session.commit()  # Commit the change to the database
+            span.add_event(f"task_deleted: {task_to_delete.description}")
             return redirect(url_for("home"))  # Redirect to the home page
 
 
