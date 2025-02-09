@@ -8,6 +8,7 @@ opentelemetry-bootstrap --action=install
 ```
 
 ## Step 2: Setting local environment variables 
+Create an account with Elastic [here](https://www.elastic.co/cloud/cloud-trial-overview) and gather the OTLP Headers and Endpoint.
 
 ```
 export OTEL_RESOURCE_ATTRIBUTES=service.name=otel-flask-demo
@@ -21,7 +22,7 @@ export ELASTIC_OTEL_SYSTEM_METRICS_ENABLED=true
 ### Automatic instrumentation
 The Automatic Instrumentation demo will run on localhost:4999
 ```
-opentelemetry-instrument python app.py
+OTEL_SERVICE_NAME='automatic-flask-demo' opentelemetry-instrument python app.py
 ```
 
 ### Manual instrumentation
