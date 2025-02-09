@@ -1,3 +1,5 @@
+# Automatic Instrumentation with OpenTelemetry
+
 from flask import Flask, request, render_template_string, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import Mapped, mapped_column
@@ -6,10 +8,12 @@ app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///tasks.db"
 db = SQLAlchemy()
 
+
 # Define a database model named Task for storing task data
 class Task(db.Model):
     id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
     description: Mapped[str] = mapped_column(db.String(256), nullable=False)
+
 
 # Initialize SQLAlchemy with the configured Flask application
 db.init_app(app)
@@ -24,7 +28,7 @@ HOME_HTML = """
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>To-Do List</title>
+  <title>Automatic To-Do List</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -78,7 +82,7 @@ HOME_HTML = """
   </style>
 </head>
 <body>
-  <h1>To-Do List</h1>
+  <h1>Automatic To-Do List</h1>
   <form action="/add" method="post">
     <input type="text" name="task" placeholder="Add new task">
     <input type="submit" value="Add Task">
@@ -92,6 +96,7 @@ HOME_HTML = """
 </html>
 """
 
+
 # Define route for the home page to display tasks
 @app.route("/", methods=["GET"])
 def home():
@@ -99,6 +104,7 @@ def home():
     return render_template_string(
         HOME_HTML, tasks=tasks
     )  # Render the homepage with tasks listed
+
 
 # Define route to add new tasks from the form submission
 @app.route("/add", methods=["POST"])
@@ -109,6 +115,7 @@ def add():
     db.session.commit()  # Commit changes to the database
     return redirect(url_for("home"))  # Redirect to the home page
 
+
 # Define route to delete tasks based on task ID
 @app.route("/delete/<int:task_id>", methods=["GET"])
 def delete(task_id: int):
@@ -118,6 +125,7 @@ def delete(task_id: int):
         db.session.commit()  # Commit the change to the database
     return redirect(url_for("home"))  # Redirect to the home page
 
+
 # Check if the script is the main program and run the app
 if __name__ == "__main__":
-    app.run()  # Start the Flask application
+    app.run(port=4999)  # Start the Flask application

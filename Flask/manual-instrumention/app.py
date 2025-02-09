@@ -1,3 +1,5 @@
+# Manual Instrumentation with OpenTelemetry
+
 import os
 from flask import Flask, request, render_template_string, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
@@ -14,7 +16,7 @@ from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
 
 # Get environment variables
-service_name = os.getenv("OTEL_SERVICE_NAME", "service.name=todo-flask-app")
+service_name = "manual-flask-demo"
 otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
 otlp_headers = os.getenv("OTEL_EXPORTER_OTLP_HEADERS")
 
@@ -67,10 +69,10 @@ db = SQLAlchemy()
 # Initialize SQLAlchemy with the configured Flask application
 db.init_app(app)
 
-# Instrument Flask and SQLAlchemy
-FlaskInstrumentor().instrument_app(app)
-with app.app_context():
-    SQLAlchemyInstrumentor().instrument(engine=db.engine)
+# Adds Flask and SQLAlchemy Instrumentation -
+# FlaskInstrumentor().instrument_app(app)
+# with app.app_context():
+#     SQLAlchemyInstrumentor().instrument(engine=db.engine)
 
 
 # Define a database model named Task for storing task data
@@ -89,7 +91,7 @@ HOME_HTML = """
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>To-Do List</title>
+  <title>Manual To-Do List</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -143,7 +145,7 @@ HOME_HTML = """
   </style>
 </head>
 <body>
-  <h1>To-Do List</h1>
+  <h1>Manual To-Do List</h1>
   <form action="/add" method="post">
     <input type="text" name="task" placeholder="Add new task">
     <input type="submit" value="Add Task">
@@ -162,9 +164,10 @@ HOME_HTML = """
 @app.route("/", methods=["GET"])
 def home():
     with app.app_context():
-        with tracer.start_as_current_span("home-request"):
+        with tracer.start_span("home-request") as span:
             requests_counter.add(1, {"method": "GET", "endpoint": "/"})
             tasks = Task.query.all()  # Retrieve all tasks from the database
+            span.set_attribute("tasks_retrieved.quantity", len(tasks))
             return render_template_string(
                 HOME_HTML, tasks=tasks
             )  # Render the homepage with tasks listed
@@ -174,7 +177,7 @@ def home():
 @app.route("/add", methods=["POST"])
 def add():
     with app.app_context():
-        with tracer.start_as_current_span("add-task") as span:
+        with tracer.start_span("add-task") as span:
             requests_counter.add(1, {"method": "POST", "endpoint": "/add"})
             task_description = request.form[
                 "task"
@@ -191,17 +194,19 @@ def add():
 @app.route("/delete/<int:task_id>", methods=["GET"])
 def delete(task_id: int):
     with app.app_context():
-        with tracer.start_as_current_span("delete-task"):
+        with tracer.start_span("delete-task") as span:
             requests_counter.add(1, {"method": "GET", "endpoint": f"/delete/{task_id}"})
             task_to_delete = Task.query.get(task_id)  # Get task by ID
+            span.set_attribute("task_to_delete", task_to_delete.description)
             if task_to_delete:
                 db.session.delete(
                     task_to_delete
                 )  # Remove task from the database session
                 db.session.commit()  # Commit the change to the database
+                span.set_attribute("deleted_from_db", True)
             return redirect(url_for("home"))  # Redirect to the home page
 
 
 # Check if the script is the main program and run the app
 if __name__ == "__main__":
-    app.run()  # Start the Flask application
+    app.run(port=5000)  # Start the Flask application

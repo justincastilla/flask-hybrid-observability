@@ -1,3 +1,4 @@
+# Hybrid Instrumentation with OpenTelemetry
 import os
 from flask import Flask, request, render_template_string, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
@@ -33,12 +34,6 @@ resource = Resource(attributes={"service.name": service_name})
 trace.set_tracer_provider(TracerProvider(resource=resource))
 tracer_provider = trace.get_tracer_provider()
 
-# otlp_trace_exporter = OTLPSpanExporter(
-#     endpoint=otlp_endpoint,
-#     headers=headers_dict,
-# )
-# span_processor = BatchSpanProcessor(otlp_trace_exporter)
-# tracer_provider.add_span_processor(span_processor)
 
 # Create a tracer
 tracer = trace.get_tracer(__name__)
@@ -89,7 +84,7 @@ HOME_HTML = """
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>To-Do List</title>
+  <title>Hybrid To-Do List</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -143,7 +138,7 @@ HOME_HTML = """
   </style>
 </head>
 <body>
-  <h1>To-Do List</h1>
+  <h1>Hybrid To-Do List</h1>
   <form action="/add" method="post">
     <input type="text" name="task" placeholder="Add new task">
     <input type="submit" value="Add Task">
@@ -162,9 +157,10 @@ HOME_HTML = """
 @app.route("/", methods=["GET"])
 def home():
     with app.app_context():
-        with tracer.start_as_current_span("home-request"):
+        with tracer.start_as_current_span("home-request") as span:
             requests_counter.add(1, {"method": "GET", "endpoint": "/"})
             tasks = Task.query.all()  # Retrieve all tasks from the database
+            span.set_attribute("tasks_retrieved.quantity", len(tasks))
             return render_template_string(
                 HOME_HTML, tasks=tasks
             )  # Render the homepage with tasks listed
@@ -206,4 +202,4 @@ def delete(task_id: int):
 
 # Check if the script is the main program and run the app
 if __name__ == "__main__":
-    app.run()  # Start the Flask application
+    app.run(port=5001)  # Start the Flask application
